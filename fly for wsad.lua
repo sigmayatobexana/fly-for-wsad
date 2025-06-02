@@ -3,7 +3,7 @@ local userInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 
--- Создаем интерфейс с кнопками WASD
+-- Создаем интерфейс с кнопками W, A, S, D
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "FlightControls"
 screenGui.Parent = player:WaitForChild("PlayerGui")
@@ -49,29 +49,26 @@ local keysDown = {
     D = false
 }
 
--- Обработчики нажатий и отпускания клавиш
-local function setKeyState(key, isDown)
-    if key == Enum.KeyCode.W then keysDown.W = isDown end
-    if key == Enum.KeyCode.A then keysDown.A = isDown end
-    if key == Enum.KeyCode.S then keysDown.S = isDown end
-    if key == Enum.KeyCode.D then keysDown.D = isDown end
+-- Обработчики нажатий и отпусканий для кнопок
+local function setupButton(btn, key)
+    btn.MouseButton1Down:Connect(function()
+        keysDown[key] = true
+    end)
+    btn.MouseButton1Up:Connect(function()
+        keysDown[key] = false
+    end)
+    -- Также, чтобы учесть, если игрок держит кнопку, а потом отпускает, добавим обработку
+    btn.MouseButton1Click:Connect(function()
+        -- ничего не делаем, чтобы не мешать
+    end)
 end
 
-userInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.UserInputType == Enum.UserInputType.Keyboard then
-        setKeyState(input.KeyCode, true)
-    end
-end)
+setupButton(btnW, "W")
+setupButton(btnA, "A")
+setupButton(btnS, "S")
+setupButton(btnD, "D")
 
-userInputService.InputEnded:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.UserInputType == Enum.UserInputType.Keyboard then
-        setKeyState(input.KeyCode, false)
-    end
-end)
-
--- Основная логика полета
+-- Основной цикл движения
 local function activateFlight()
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     local rootPart = character:WaitForChild("HumanoidRootPart")
@@ -89,7 +86,7 @@ local function activateFlight()
 
     runService.Heartbeat:Connect(function()
         if not character or not character.Parent then
-            -- если персонаж исчез, отключаем
+            -- если персонаж исчез — отключаем
             bodyVelocity:Destroy()
             bodyGyro:Destroy()
             return
@@ -97,7 +94,7 @@ local function activateFlight()
 
         local moveDirection = Vector3.new()
 
-        -- Обработка WASD
+        -- Обработка нажатых клавиш
         if keysDown.W then
             moveDirection = moveDirection + workspace.CurrentCamera.CFrame.LookVector
         end
@@ -116,6 +113,10 @@ local function activateFlight()
             moveDirection = moveDirection.Unit * 50
         end
         bodyVelocity.Velocity = moveDirection
+        -- Поворот камеры
         bodyGyro.CFrame = workspace.CurrentCamera.CFrame
     end)
 end
+
+-- Запускаем управление
+activateFlight()
