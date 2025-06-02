@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local userInputService = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 
@@ -57,10 +58,6 @@ local function setupButton(btn, key)
     btn.MouseButton1Up:Connect(function()
         keysDown[key] = false
     end)
-    -- Также, чтобы учесть, если игрок держит кнопку, а потом отпускает, добавим обработку
-    btn.MouseButton1Click:Connect(function()
-        -- ничего не делаем, чтобы не мешать
-    end)
 end
 
 setupButton(btnW, "W")
@@ -68,13 +65,13 @@ setupButton(btnA, "A")
 setupButton(btnS, "S")
 setupButton(btnD, "D")
 
--- Основной цикл движения
+-- Переменная, чтобы знать, летаете ли вы
+local isFlying = false
+
+-- Функция активировать полет
 local function activateFlight()
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     local rootPart = character:WaitForChild("HumanoidRootPart")
-    local runService = game:GetService("RunService")
-    local flying = true
-
     local bodyVelocity = Instance.new("BodyVelocity")
     bodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
     bodyVelocity.Parent = rootPart
@@ -84,17 +81,19 @@ local function activateFlight()
     bodyGyro.CFrame = rootPart.CFrame
     bodyGyro.Parent = rootPart
 
+    isFlying = true
+
     runService.Heartbeat:Connect(function()
         if not character or not character.Parent then
             -- если персонаж исчез — отключаем
             bodyVelocity:Destroy()
             bodyGyro:Destroy()
+            isFlying = false
             return
         end
 
         local moveDirection = Vector3.new()
 
-        -- Обработка нажатых клавиш
         if keysDown.W then
             moveDirection = moveDirection + workspace.CurrentCamera.CFrame.LookVector
         end
@@ -108,15 +107,38 @@ local function activateFlight()
             moveDirection = moveDirection + workspace.CurrentCamera.CFrame.RightVector
         end
 
-        -- Нормализация и применение скорости
         if moveDirection.Magnitude > 0 then
             moveDirection = moveDirection.Unit * 50
         end
+
         bodyVelocity.Velocity = moveDirection
-        -- Поворот камеры
         bodyGyro.CFrame = workspace.CurrentCamera.CFrame
     end)
 end
 
--- Запускаем управление
+-- Основной цикл, который следит, чтобы вы летали
+spawn(function()
+    while true do
+        if not isFlying then
+            -- если не летаете, уничтожаем персонажа
+            if character and character:FindFirstChildOfClass("Humanoid") then
+                character:FindFirstChildOfClass("Humanoid").Health = 0
+            end
+            -- ждем, пока не включите снова
+            repeat
+                wait(0.5)
+                character = player.Character
+            until character and character:FindFirstChild("Humanoid") and isFlying
+            -- активируем снова
+            activateFlight()
+        end
+        wait(1)
+    end
+end)
+
+-- Включение полета по нажатию на кнопку или по вашему условию
+-- Например, для теста сразу активируем
 activateFlight()
+
+-- Для отключения полета можно сделать отдельную функцию или кнопку
+-- и установить isFlying = false
